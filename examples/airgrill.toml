@@ -1,0 +1,181 @@
+# airgrill example configuration.
+#
+# Copy to /etc/airgrill/config.toml and edit the lists / VLESS link.
+# `airgrill check` validates the file, `airgrill route <domain>` explains a
+# decision, `airgrill rules print` shows the generated nftables script.
+
+[log]
+level = "info"          # error | warn | info | debug | trace
+
+[routing]
+# lists          — каждый список авторитетен, unmatched -> default_route
+# proxy-default  — unmatched -> proxy   (режим «всё, кроме исключений»)
+# dpi-default    — unmatched -> dpi desync
+# direct-default — unmatched -> direct
+# block-default  — unmatched -> block
+mode = "lists"
+default_route = "direct"
+
+# Сколько угодно именованных списков. Первое совпадение выигрывает.
+# priority больше = проверяется раньше; при равном priority — порядок в файле.
+# В одном списке можно смешивать домены, CIDR и keyword/regex-правила.
+# backend и strategy опциональны и переопределяют глобальные значения.
+
+[[routing.rules]]
+name = "youtube-dpi"
+route = "dpi"
+strategy = "disorder:sni"
+domains = [
+  "domain:youtube.com",
+  "domain:youtu.be",
+  "domain:googlevideo.com",
+  "domain:ytimg.com",
+  "domain:ggpht.com",
+  "domain:youtube-nocookie.com",
+]
+
+# Второй DPI-список со своей стратегией: видно, что стратегий может быть
+# сколько угодно и у каждой свой NFQUEUE.
+# [[routing.rules]]
+# name = "twitter-dpi"
+# route = "dpi"
+# strategy = "fake:sni"
+# domains = ["domain:x.com", "domain:twitter.com", "domain:twimg.com"]
+
+[[routing.rules]]
+name = "discord-proxy"
+route = "proxy"
+backend = "vps"
+domains = [
+  "domain:discord.com",
+  "domain:discord.gg",
+  "domain:discordapp.com",
+  "domain:discordapp.net",
+  "domain:discord.media",
+  "domain:discordcdn.com",
+]
+
+[[routing.rules]]
+name = "telegram-proxy"
+route = "proxy"
+backend = "vps"
+domains = [
+  "domain:telegram.org",
+  "domain:telegram.me",
+  "domain:t.me",
+  "domain:telesco.pe",
+  "domain:telegra.ph",
+  "domain:cdn-telegram.org",
+  "domain:telegram-cdn.org",
+  # MTProto ходит на IP без SNI — CIDR обязательны.
+  "cidr:91.108.0.0/16",
+  "cidr:149.154.160.0/20",
+  "cidr:185.76.151.0/24",
+  "cidr:5.28.192.0/18",
+  "cidr:95.161.64.0/20",
+  "cidr:2001:67c:4e8::/48",
+  "cidr:2001:b28:f23c::/47",
+  "cidr:2001:b28:f23d::/48",
+  "cidr:2001:b28:f23f::/48",
+  "cidr:2a0a:f280::/32",
+]
+
+[[routing.rules]]
+name = "ai-proxy"
+route = "proxy"
+backend = "vps"
+domains = [
+  "domain:openai.com",
+  "domain:chatgpt.com",
+  "domain:anthropic.com",
+  "domain:claude.ai",
+]
+
+[[routing.rules]]
+name = "local-direct"
+route = "direct"
+domains = [
+  "cidr:10.0.0.0/8",
+  "cidr:192.168.0.0/16",
+  "domain:example.ru",
+]
+
+# Блокировка проверяется раньше остальных благодаря priority.
+# [[routing.rules]]
+# name = "ads"
+# route = "block"
+# priority = 10
+# domains = ["domain:ads.example", "keyword:tracker"]
+
+[dpi]
+enabled = true
+# disorder:sni works on the TSPU/Rostelecom path; fake:sni is the other
+# common choice.  split/overlap/ipfrag/oob/disoob and multi-position forms
+# such as split:50,100 are also available.  A single rule can override this
+# with its own `strategy = ...`.
+strategy = "disorder:sni"
+decoy = "example.com"
+queue_num = 200
+max_packets = 16
+delay_ms = 0
+
+[dns]
+enabled = true
+# nftables redirects :53 here, so this is not a privileged port.
+listen = "0.0.0.0:15353"
+upstreams = ["1.1.1.1:53", "8.8.8.8:53"]
+min_ttl = 30
+max_ttl = 3600
+
+[proxy]
+default_backend = "vps"
+
+# Оставьте старый proxy-порт Hiddify живым: приложения с
+# http_proxy=http://127.0.0.1:12334 продолжат работать после переключения.
+[proxy_inbound]
+enabled = true
+listen = "127.0.0.1:12334"
+
+[[proxy.backends]]
+name = "vps"
+kind = "xray"
+# Reality / Vision / gRPC / WS: use the external Xray core.
+url = "vless://00000000-0000-0000-0000-000000000000@vps.example:443?encryption=none&security=reality&sni=www.microsoft.com&fp=chrome&pbk=REPLACE_ME&sid=0123abcd&flow=xtls-rprx-vision&type=tcp"
+xray_binary = "xray"           # or an absolute path
+socks_addr = "127.0.0.1:10808"
+# Xray runs under this uid so its own outbound traffic is not intercepted.
+run_as_uid = 65534
+
+# A second backend, implemented in-process.  VLESS over TCP/TLS/WS only:
+# Reality and flow=xtls-rprx-vision require the xray backend.
+# [[proxy.backends]]
+# name = "native"
+# kind = "native"
+# url = "vless://11111111-2222-3333-4444-555555555555@vps2.example:443?security=tls&type=ws&path=%2Fws&sni=vps2.example"
+# insecure = false
+
+[router]
+# LAN forwarding.  Keep false until you are ready to take over the second PC.
+enabled = true
+lan_interfaces = ["eno2"]
+lan_cidrs = ["10.10.10.0/24"]
+tcp_port = 16000
+host_tcp_ports = [80, 443]
+host_all_tcp = false
+lan_all_tcp = true
+bypass_private = true
+masquerade = false
+
+[tun]
+# Userspace UDP datapath (QUIC, games, Discord/Telegram voice).
+enabled = true
+name = "airgrill0"
+address_v4 = "198.18.0.1"
+address_v6 = "fd00:6169:7267::1"
+mtu = 1500
+table = 100
+# block — drop UDP/443, browsers fall back to TCP (recommended)
+# direct — let QUIC bypass the proxy
+# proxy  — relay QUIC through the backend
+quic = "block"
+idle_timeout_secs = 60

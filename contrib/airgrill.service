@@ -1,0 +1,19 @@
+[Unit]
+Description=airgrill domain-routed proxy client
+Documentation=file:///etc/airgrill/config.toml
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# airgrill needs CAP_NET_ADMIN for nftables/TPROXY/TUN and CAP_NET_RAW for the
+# DPI injector.  It drops no privileges itself; Xray is started as nobody.
+ExecStart=/usr/local/bin/airgrill -c /etc/airgrill/config.toml run
+
+Restart=on-failure
+RestartSec=2
+LimitNOFILE=65535
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

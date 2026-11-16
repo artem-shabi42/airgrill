@@ -1,0 +1,42 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/airgrill-core",
+    "crates/airgrill-dpi",
+    "crates/airgrill-net",
+    "crates/airgrill-proxy",
+    "crates/airgrill-dns",
+    "crates/airgrill",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "MIT"
+repository = "https://github.com/artem-shabi42/airgrill"
+
+[workspace.dependencies]
+anyhow = "1.0"
+async-trait = "0.1"
+clap = { version = "4.5", features = ["derive", "env"] }
+futures-util = "0.3"
+ipnet = { version = "2.11", features = ["serde"] }
+libc = "0.2"
+regex = "1.11"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+socket2 = { version = "0.6", features = ["all"] }
+tempfile = "3"
+thiserror = "2.0"
+tokio = { version = "1.44", features = ["full"] }
+toml = "0.9"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+url = "2.5"
+uuid = "1.11"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

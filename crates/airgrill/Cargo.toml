@@ -1,0 +1,25 @@
+[package]
+name = "airgrill"
+description = "Domain-routed proxy client with DPI evasion and LAN router mode"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "airgrill"
+path = "src/main.rs"
+
+[dependencies]
+airgrill-core = { path = "../airgrill-core" }
+airgrill-dpi = { path = "../airgrill-dpi" }
+airgrill-dns = { path = "../airgrill-dns" }
+airgrill-net = { path = "../airgrill-net" }
+airgrill-proxy = { path = "../airgrill-proxy" }
+anyhow.workspace = true
+clap.workspace = true
+libc.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
